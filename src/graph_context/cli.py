@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -103,12 +104,19 @@ def setup(ctx: click.Context) -> None:
 
 @cli.command()
 @click.option("--quiet", "-q", is_flag=True, help="Suppress per-file output.")
+@click.option("--daemon", "-d", is_flag=True, help="Run in background as a daemon.")
+@click.option("--stop", is_flag=True, help="Stop a running daemon.")
+@click.option("--status", "show_status", is_flag=True, help="Check daemon status.")
 @click.pass_context
-def watch(ctx: click.Context, quiet: bool) -> None:
+def watch(ctx: click.Context, quiet: bool, daemon: bool, stop: bool, show_status: bool) -> None:
     """Watch for file changes and auto-reindex.
 
     Monitors supported source files and re-indexes them on save.
     Uses watchfiles (Rust-backed) with 1.6s debounce for batching rapid saves.
+
+    Run in background:  graph-context watch --daemon
+    Check status:       graph-context watch --status
+    Stop daemon:        graph-context watch --stop
     """
     repo = ctx.obj["repo"]
     meta = config.load_meta(repo)
@@ -116,7 +124,32 @@ def watch(ctx: click.Context, quiet: bool) -> None:
         click.echo("Error: graph-context not initialized. Run `graph-context setup` first.")
         raise SystemExit(1)
 
-    from .watcher import run_watcher
+    from .watcher import run_watcher, start_daemon, stop_daemon, daemon_status
+
+    if show_status:
+        info = daemon_status(repo)
+        if info and info["running"]:
+            click.echo(f"Watcher running (PID {info['pid']})")
+        else:
+            click.echo("Watcher not running.")
+        return
+
+    if stop:
+        if stop_daemon(repo):
+            click.echo("Watcher stopped.")
+        else:
+            click.echo("No watcher running.")
+        return
+
+    if daemon:
+        pid = start_daemon(repo)
+        if os.getpid() != pid:
+            # We're the parent
+            click.echo(f"Watcher started in background (PID {pid})")
+            click.echo(f"  Stop with: graph-context watch --stop")
+            click.echo(f"  Log: .graph-context/watcher.log")
+        return
+
     run_watcher(repo, quiet=quiet)
 
 

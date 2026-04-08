@@ -2,10 +2,13 @@
 
 Uses watchfiles (Rust-backed) for efficient filesystem monitoring.
 Debounces changes and re-indexes only modified files.
+Supports daemon mode with PID file for background operation.
 """
 
 from __future__ import annotations
 
+import os
+import signal
 import sys
 import time
 from pathlib import Path
@@ -99,3 +102,94 @@ def run_watcher(repo_path: str, quiet: bool = False) -> None:
             print("\nStopped watching.")
     finally:
         store.close()
+
+
+def _pid_file(repo_path: str) -> Path:
+    """Get the PID file path for a repo's watcher daemon."""
+    return Path(config.get_project_dir(repo_path)) / "watcher.pid"
+
+
+def start_daemon(repo_path: str) -> int:
+    """Fork the watcher into a background daemon process.
+
+    Returns the child PID. Writes a PID file for later stop/status.
+    """
+    repo = Path(repo_path).resolve()
+    pid_path = _pid_file(str(repo))
+    log_path = Path(config.get_project_dir(str(repo))) / "watcher.log"
+
+    # Check if already running
+    if pid_path.exists():
+        old_pid = int(pid_path.read_text().strip())
+        try:
+            os.kill(old_pid, 0)  # Check if process exists
+            return old_pid  # Already running
+        except OSError:
+            pid_path.unlink()  # Stale PID file
+
+    pid = os.fork()
+    if pid > 0:
+        # Parent — write PID and return
+        pid_path.write_text(str(pid))
+        return pid
+
+    # Child — detach and run
+    os.setsid()
+
+    # Redirect stdout/stderr to log file
+    log_fd = os.open(str(log_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+    os.dup2(log_fd, sys.stdout.fileno())
+    os.dup2(log_fd, sys.stderr.fileno())
+    os.close(log_fd)
+
+    # Redirect stdin from /dev/null
+    devnull = os.open(os.devnull, os.O_RDONLY)
+    os.dup2(devnull, sys.stdin.fileno())
+    os.close(devnull)
+
+    try:
+        run_watcher(str(repo), quiet=False)
+    finally:
+        pid_path = _pid_file(str(repo))
+        if pid_path.exists():
+            pid_path.unlink()
+    os._exit(0)
+
+
+def stop_daemon(repo_path: str) -> bool:
+    """Stop a running watcher daemon. Returns True if stopped."""
+    pid_path = _pid_file(repo_path)
+    if not pid_path.exists():
+        return False
+
+    pid = int(pid_path.read_text().strip())
+    try:
+        os.kill(pid, signal.SIGTERM)
+        # Wait briefly for clean shutdown
+        for _ in range(10):
+            time.sleep(0.2)
+            try:
+                os.kill(pid, 0)
+            except OSError:
+                break  # Process gone
+    except OSError:
+        pass  # Already dead
+
+    if pid_path.exists():
+        pid_path.unlink()
+    return True
+
+
+def daemon_status(repo_path: str) -> dict | None:
+    """Check watcher daemon status. Returns {pid, running} or None."""
+    pid_path = _pid_file(repo_path)
+    if not pid_path.exists():
+        return None
+
+    pid = int(pid_path.read_text().strip())
+    try:
+        os.kill(pid, 0)
+        return {"pid": pid, "running": True}
+    except OSError:
+        pid_path.unlink()
+        return {"pid": pid, "running": False}
