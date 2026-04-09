@@ -61,7 +61,7 @@ class HistoryIndexer:
     ) -> None:
         """Index a single commit: create Commit node, Change nodes, and edges."""
         # Create or update Commit node
-        self.store.execute(
+        self.store.execute_write(
             """MERGE (c:Commit {hash: $hash})
                SET c.message = $msg, c.author = $author, c.timestamp = $ts""",
             {"hash": commit.hash, "msg": commit.message, "author": commit.author, "ts": commit.timestamp},
@@ -86,7 +86,7 @@ class HistoryIndexer:
             change_id = f"{commit.hash}::{change.file_path}"
 
             # Create or update Change node
-            self.store.execute(
+            self.store.execute_write(
                 """MERGE (ch:Change {id: $id})
                    SET ch.file_path = $fp, ch.additions = $adds,
                        ch.deletions = $dels, ch.change_type = $ct""",

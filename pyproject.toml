@@ -32,7 +32,7 @@ dev = [
 ]
 
 [project.scripts]
-graph-context = "graph_context.cli:cli"
+graph-context = "graph_context.cli:main"
 graph-context-mcp = "graph_context.mcp_server:run_server"
 
 [tool.hatch.build.targets.wheel]

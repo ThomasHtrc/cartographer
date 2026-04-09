@@ -2,7 +2,8 @@
 
 Uses watchfiles (Rust-backed) for efficient filesystem monitoring.
 Debounces changes and re-indexes only modified files.
-Supports daemon mode with PID file for background operation.
+Supports daemon mode with PID file for background operation, and an
+in-process mode used by the MCP server (run_with_store).
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from __future__ import annotations
 import os
 import signal
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -45,19 +47,26 @@ def _should_watch(path: Path, repo: Path) -> bool:
     return True
 
 
-def run_watcher(repo_path: str, quiet: bool = False) -> None:
-    """Watch a repo for file changes and auto-reindex.
+def run_with_store(
+    store: GraphStore,
+    repo_path: str | Path,
+    stop_event: threading.Event | None = None,
+    quiet: bool = True,
+) -> None:
+    """Run the watcher loop using an externally-managed GraphStore.
+
+    Used by the MCP server's in-process watcher thread: the MCP process
+    already holds the LadybugDB lock, so a separate Database object would
+    fail. Instead we share the existing store (and its write lock).
 
     Args:
+        store: An already-open GraphStore. Caller owns its lifecycle.
         repo_path: Path to the repository root.
+        stop_event: Optional threading.Event — when set, the loop exits
+            cleanly. Required for in-process / threaded use.
         quiet: Suppress per-file output (only show summaries).
     """
     repo = Path(repo_path).resolve()
-    db_path = config.get_db_path(str(repo))
-
-    store = GraphStore(db_path)
-    store.open()
-    store.ensure_schema()
     indexer = StructureIndexer(store, repo)
 
     if not quiet:
@@ -69,6 +78,8 @@ def run_watcher(repo_path: str, quiet: bool = False) -> None:
             watch_filter=lambda change, path: _should_watch(Path(path), repo),
             debounce=1600,  # ms — batch rapid saves
             step=200,       # ms — poll interval
+            stop_event=stop_event,
+            raise_interrupt=False,
         ):
             # Collect unique changed file paths
             changed: set[str] = set()
@@ -100,6 +111,26 @@ def run_watcher(repo_path: str, quiet: bool = False) -> None:
     except KeyboardInterrupt:
         if not quiet:
             print("\nStopped watching.")
+
+
+def run_watcher(repo_path: str, quiet: bool = False) -> None:
+    """Watch a repo for file changes and auto-reindex (standalone mode).
+
+    Opens its own GraphStore. Use this for the daemon path; for the
+    in-process MCP watcher, call ``run_with_store`` with a shared store.
+
+    Args:
+        repo_path: Path to the repository root.
+        quiet: Suppress per-file output (only show summaries).
+    """
+    repo = Path(repo_path).resolve()
+    db_path = config.get_db_path(str(repo))
+
+    store = GraphStore(db_path)
+    store.open()
+    store.ensure_schema()
+    try:
+        run_with_store(store, repo, stop_event=None, quiet=quiet)
     finally:
         store.close()
 

@@ -6,8 +6,10 @@ plan management) as MCP tools accessible via stdio transport.
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
+import threading
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -33,9 +35,21 @@ def _repo_path() -> str:
 # Persistent store cache — avoids DB open/close overhead on every tool call.
 _store_cache: dict[str, GraphStore] = {}
 
+# Per-repo background watcher threads. Each entry is (Thread, stop_event).
+# Spawned lazily from _open_store() so that the MCP server keeps the index
+# fresh while it holds the LadybugDB lock — without this, every other tool
+# (CLI index, daemon watcher) would be blocked by the lock.
+_watcher_threads: dict[str, tuple[threading.Thread, threading.Event]] = {}
+_watcher_lock = threading.Lock()
+
 
 def _open_store() -> GraphStore:
-    """Get or create a persistent store connection for the current repo."""
+    """Get or create a persistent store connection for the current repo.
+
+    Also lazily spawns an in-process file watcher thread for the repo
+    (unless ``GRAPH_CONTEXT_MCP_AUTOWATCH=0``), so that file edits get
+    re-indexed without restarting the MCP server.
+    """
     repo = _repo_path()
     if repo in _store_cache:
         return _store_cache[repo]
@@ -44,7 +58,55 @@ def _open_store() -> GraphStore:
     store.open()
     store.ensure_schema()
     _store_cache[repo] = store
+    _ensure_watcher(repo, store)
     return store
+
+
+def _ensure_watcher(repo: str, store: GraphStore) -> None:
+    """Spawn a background watcher thread for ``repo`` if not already running.
+
+    No-op if ``GRAPH_CONTEXT_MCP_AUTOWATCH=0`` is set in the environment.
+    """
+    if os.environ.get("GRAPH_CONTEXT_MCP_AUTOWATCH", "1") == "0":
+        return
+    with _watcher_lock:
+        if repo in _watcher_threads:
+            existing_thread, _ = _watcher_threads[repo]
+            if existing_thread.is_alive():
+                return
+            # Stale entry — drop and respawn.
+            del _watcher_threads[repo]
+
+        from .watcher import run_with_store
+
+        stop_event = threading.Event()
+        thread = threading.Thread(
+            target=run_with_store,
+            kwargs={
+                "store": store,
+                "repo_path": repo,
+                "stop_event": stop_event,
+                "quiet": True,
+            },
+            name=f"graph-context-watcher[{Path(repo).name}]",
+            daemon=True,
+        )
+        thread.start()
+        _watcher_threads[repo] = (thread, stop_event)
+
+
+def _shutdown_watchers() -> None:
+    """Signal all watcher threads to stop and wait briefly for them to exit."""
+    with _watcher_lock:
+        items = list(_watcher_threads.items())
+        _watcher_threads.clear()
+    for _repo, (thread, stop_event) in items:
+        stop_event.set()
+    for _repo, (thread, _stop_event) in items:
+        thread.join(timeout=2.0)
+
+
+atexit.register(_shutdown_watchers)
 
 
 def _resolve_path(store: GraphStore, path: str) -> str:
@@ -652,6 +714,74 @@ def dead_code(path: str | None = None, include_methods: bool = False) -> str:
     if not results:
         return "No dead code candidates found (after filtering entry points)."
     return json.dumps(results, indent=2)
+
+
+@mcp.tool()
+def timeline(target: str, limit: int = 20, format: str = "markdown",
+             include_neighbors: bool = True) -> str:
+    """Unified past+future view for a file, module, or symbol.
+
+    Combines git history (commits affecting the target) with active/draft plans
+    targeting it. Optionally includes co-change neighbors and (for symbols)
+    blast-radius callers. Use this when you want the full story of an area in
+    one call instead of stitching together recent_changes + plan_show + co_changes.
+
+    Args:
+        target: File path, module path, function name, or class name
+        limit: Max past commits to return (default 20)
+        format: "markdown" (default, agent-friendly) or "json" (programmatic)
+        include_neighbors: Include co-change neighbors and callers (default True)
+    """
+    from .timeline import get_timeline, format_markdown, format_json
+    store = _open_store()
+    data = get_timeline(store, target, limit=limit, include_neighbors=include_neighbors)
+    if data["target"] is None:
+        return _no_results_hint(store, target, "timeline data")
+    if format == "json":
+        return format_json(data)
+    return format_markdown(data)
+
+
+@mcp.tool()
+def reindex(scope: str = "incremental", layer: str = "structure") -> str:
+    """Re-run indexing without restarting the MCP server.
+
+    Useful as a manual escape hatch when the in-process watcher missed
+    something (e.g. files were modified before the server started, or
+    history needs a fresh pull).
+
+    Args:
+        scope: "incremental" — re-scan changed files only (structure layer);
+               "all" — re-scan every file in the repo.
+        layer: "structure" — code structure (files, symbols, calls);
+               "history" — git commits + changes;
+               "all" — both layers.
+    """
+    if scope not in ("incremental", "all"):
+        return f"Invalid scope '{scope}'. Use 'incremental' or 'all'."
+    if layer not in ("structure", "history", "all"):
+        return f"Invalid layer '{layer}'. Use 'structure', 'history', or 'all'."
+
+    repo = _repo_path()
+    store = _open_store()
+    summary: dict[str, dict] = {}
+
+    if layer in ("structure", "all"):
+        from .indexer.structure import StructureIndexer
+
+        indexer = StructureIndexer(store, Path(repo))
+        if scope == "all":
+            summary["structure"] = indexer.index_full()
+        else:
+            summary["structure"] = indexer.index_incremental(since_hash=None)
+
+    if layer in ("history", "all"):
+        from .indexer.history import HistoryIndexer
+
+        h_indexer = HistoryIndexer(store, repo)
+        summary["history"] = h_indexer.index()
+
+    return json.dumps(summary, indent=2, default=str)
 
 
 @mcp.tool()

@@ -41,7 +41,7 @@ class PlanManager:
         plan_id = _new_id()
         now = _now()
 
-        self.store.execute(
+        self.store.execute_write(
             """CREATE (p:Plan {
                 id: $id, title: $title, description: $descr,
                 status: $status, created_at: $now, updated_at: $now, author: $author
@@ -89,7 +89,7 @@ class PlanManager:
             sets.append("p.status = $status")
             params["status"] = status
 
-        self.store.execute(
+        self.store.execute_write(
             f"MATCH (p:Plan {{id: $id}}) SET {', '.join(sets)}",
             params,
         )
@@ -236,7 +236,7 @@ class PlanManager:
         )
         if not existing:
             return False
-        self.store.execute("MATCH (p:Plan {id: $id}) DETACH DELETE p", {"id": plan_id})
+        self.store.execute_write("MATCH (p:Plan {id: $id}) DETACH DELETE p", {"id": plan_id})
         return True
 
     # -- Intent CRUD ----------------------------------------------------------
@@ -254,7 +254,7 @@ class PlanManager:
         If affected_files is provided, auto-links them as plan targets.
         """
         intent_id = _new_id()
-        self.store.execute(
+        self.store.execute_write(
             """CREATE (i:Intent {
                 id: $id, description: $descr, rationale: $rat, status: $status
             })""",
@@ -280,7 +280,7 @@ class PlanManager:
             sets.append("i.description = $descr")
             params["descr"] = description
         if sets:
-            self.store.execute(f"MATCH (i:Intent {{id: $id}}) SET {', '.join(sets)}", params)
+            self.store.execute_write(f"MATCH (i:Intent {{id: $id}}) SET {', '.join(sets)}", params)
         return True
 
     # -- Target linking -------------------------------------------------------
@@ -402,7 +402,7 @@ class PlanManager:
             stats["updated"] += 1
         else:
             now = _now()
-            self.store.execute(
+            self.store.execute_write(
                 """CREATE (p:Plan {
                     id: $id, title: $title, description: $descr,
                     status: $status, created_at: $now, updated_at: $now, author: $author

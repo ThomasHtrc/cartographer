@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from pathlib import Path
 
 import click
 
 from . import config
-from .storage.store import GraphStore
+from .storage.store import GraphStore, DatabaseLockedError
 from .indexer.structure import StructureIndexer
 from .indexer.history import HistoryIndexer
 from .indexer.plans import PlanIndexer
@@ -117,6 +118,9 @@ def watch(ctx: click.Context, quiet: bool, daemon: bool, stop: bool, show_status
     Run in background:  graph-context watch --daemon
     Check status:       graph-context watch --status
     Stop daemon:        graph-context watch --stop
+
+    Note: if you're running graph-context-mcp, the MCP server already keeps
+    the index fresh in-process — you don't need a separate watcher daemon.
     """
     repo = ctx.obj["repo"]
     meta = config.load_meta(repo)
@@ -866,6 +870,77 @@ def map_cmd(ctx: click.Context, focus: tuple, budget: int, fmt: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# timeline (past + future view)
+# ---------------------------------------------------------------------------
+
+@cli.command("timeline")
+@click.argument("target")
+@click.option("--format", "fmt", type=click.Choice(["markdown", "json", "html"]), default="markdown",
+              help="Output format (default: markdown).")
+@click.option("--limit", default=20, help="Max past commits to show (default: 20).")
+@click.option("--no-neighbors", is_flag=True, default=False,
+              help="Skip co-change neighbors and callers.")
+@click.option("--out", type=click.Path(), default=None,
+              help="Write output to file instead of stdout.")
+@click.option("--open", "open_browser", is_flag=True, default=False,
+              help="Open the result in a browser (implies --format html).")
+@click.pass_context
+def timeline_cmd(
+    ctx: click.Context,
+    target: str,
+    fmt: str,
+    limit: int,
+    no_neighbors: bool,
+    out: str | None,
+    open_browser: bool,
+) -> None:
+    """Show a unified past+future timeline for a file, module, or symbol."""
+    from .timeline import get_timeline, format_markdown, format_json, render_html
+
+    if open_browser:
+        fmt = "html"
+
+    repo = ctx.obj["repo"]
+    with GraphStore(config.get_db_path(repo)) as store:
+        store.ensure_schema()
+        data = get_timeline(
+            store, target, limit=limit, include_neighbors=not no_neighbors,
+        )
+
+        if data["target"] is None:
+            click.echo(f"(target '{target}' not found in the graph)")
+            return
+
+        if fmt == "html":
+            content = render_html(data)
+        elif fmt == "json":
+            content = format_json(data)
+        else:
+            content = format_markdown(data)
+
+        out_path: Path | None = Path(out) if out else None
+        if open_browser and out_path is None:
+            import tempfile
+            tmp = tempfile.NamedTemporaryFile(
+                suffix=".html", delete=False, mode="w", encoding="utf-8",
+            )
+            tmp.write(content)
+            tmp.close()
+            out_path = Path(tmp.name)
+        elif out_path is not None:
+            out_path.write_text(content, encoding="utf-8")
+
+        if out_path is not None:
+            click.echo(f"Wrote {out_path}")
+        else:
+            click.echo(content)
+
+        if open_browser and out_path is not None:
+            import webbrowser
+            webbrowser.open(f"file://{out_path.resolve()}")
+
+
+# ---------------------------------------------------------------------------
 # cypher (escape hatch)
 # ---------------------------------------------------------------------------
 
@@ -970,3 +1045,21 @@ def _output(rows: list[list], columns: list[str], fmt: str) -> None:
         for row in rows:
             line = "  ".join(str(v).ljust(widths[i]) for i, v in enumerate(row))
             click.echo(line)
+
+
+# ---------------------------------------------------------------------------
+# main() entry point — wraps cli() to print DatabaseLockedError cleanly
+# ---------------------------------------------------------------------------
+
+def main() -> None:
+    """Entry point used by the ``graph-context`` console script.
+
+    Runs the Click group and intercepts ``DatabaseLockedError`` so the user
+    sees a clean message instead of a traceback when the LadybugDB lock is
+    held by another process (typically a running graph-context-mcp server).
+    """
+    try:
+        cli(standalone_mode=True)
+    except DatabaseLockedError as e:
+        click.echo(f"\nError: {e}", err=True)
+        sys.exit(1)

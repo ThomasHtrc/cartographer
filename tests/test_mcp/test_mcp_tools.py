@@ -63,10 +63,26 @@ def project_dir(tmp_path):
 def _patch_repo(project_dir):
     """Patch the MCP server to use our test repo."""
     from graph_context import mcp_server
-    mcp_server._store_cache.clear()
-    with mock.patch.dict(os.environ, {"GRAPH_CONTEXT_REPO": project_dir}):
+
+    def _reset():
+        mcp_server._shutdown_watchers()
+        for store in list(mcp_server._store_cache.values()):
+            try:
+                store.close()
+            except Exception:
+                pass
+        mcp_server._store_cache.clear()
+
+    _reset()
+    # Disable the auto-watcher for these tool tests — they don't need it
+    # and the spawned threads keep Database mmap allocations alive between
+    # tests, exhausting address space when many tests run in one process.
+    with mock.patch.dict(
+        os.environ,
+        {"GRAPH_CONTEXT_REPO": project_dir, "GRAPH_CONTEXT_MCP_AUTOWATCH": "0"},
+    ):
         yield
-    mcp_server._store_cache.clear()
+    _reset()
 
 
 # ---------------------------------------------------------------------------

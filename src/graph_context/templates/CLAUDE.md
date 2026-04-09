@@ -12,6 +12,7 @@ This project has a **graph-context** index — a graph of codebase structure, gi
 | **Call graph** — "who calls this?" / "what does this call?" | `find_callers` / `find_callees` | Returns structured results in one call vs. multi-round grep. |
 | **Find a definition** | `find_definition` | Returns full typed signature without needing to Read the file. |
 | **Cross-cutting concerns** — "find all MNPI-related changes" | `search_commits` | Searches commit messages case-insensitively. Finds concepts spread across many files. |
+| **Story of an area** — "what's been happening in this file and what's planned?" | `timeline` | Past commits + active plans + neighbors in one call. Saves a `recent_changes` + `plan_show` + `co_changes` round trip. |
 | **Dead code cleanup** | `dead_code` | Finds functions with zero callers. Static call graph analysis grep can't do. |
 | **Continuity** — "what was planned?" | `plan_list` / `plan_show` | Cross-session memory with progress tracking, dependency chains, and next-step recommendations. |
 | **Reading implementation details** | `Read` / `Grep` | Graph-context gives signatures, not full code. Read the source for logic. |
@@ -26,7 +27,8 @@ This project has a **graph-context** index — a graph of codebase structure, gi
 5. **Tracing a concept across history**: `search_commits(query="auth refactor")` — find all related commits and files touched.
 6. **Resuming work**: `plan_list(status="active")` — check what was planned, see progress (e.g. "3/5 intents done").
 7. **Cleaning up code**: `dead_code(path="src/module")` — find unused functions.
-8. **Need actual code**: Use `Read` — graph-context gives structure, not implementation.
+8. **Resuming an unfamiliar area**: `timeline(target)` — read recent commits + pending plans before touching code, in one shot.
+9. **Need actual code**: Use `Read` — graph-context gives structure, not implementation.
 
 ## Tool reference
 
@@ -35,6 +37,7 @@ This project has a **graph-context** index — a graph of codebase structure, gi
 - **`co_changes(file)`** — Files that frequently change together. Reveals coupling grep can't see.
 - **`repo_map(focus?, budget=8000)`** — Ranked codebase overview. Use with focus for a targeted view, or without for a global map.
 - **`context(focus, budget=4000, format="markdown")`** — Ranked context around focal files/symbols. Includes active plan annotations when focal files are plan targets. Formats: markdown, json, annotated.
+- **`timeline(target, limit=20, format="markdown", include_neighbors=True)`** — Past commits + active plans + co-change neighbors + (for symbols) callers, in one structured view. Target can be a file, module, or symbol name. The fastest way to understand "what's been happening here and what's planned next." Pair with `--format html` from the CLI for a self-contained visualization for humans.
 
 ### Navigation
 - **`find_definition(symbol)`** — Where a function/class/variable is defined, with full signature.
