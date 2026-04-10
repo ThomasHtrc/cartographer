@@ -100,6 +100,119 @@ def setup(ctx: click.Context) -> None:
 
 
 # ---------------------------------------------------------------------------
+# migrate
+# ---------------------------------------------------------------------------
+
+@cli.command()
+@click.option("--repo", "repo_opt", default=None, help="Repo to migrate (default: --repo from the parent group, or cwd).")
+@click.option("--dry-run", is_flag=True, help="Show what would change without writing.")
+@click.pass_context
+def migrate(ctx: click.Context, repo_opt: str | None, dry_run: bool) -> None:
+    """Migrate a repo from graph-context naming to cartographer.
+
+    Renames .graph-context/ → .cartographer/ (preserves the indexed DB),
+    rewrites .mcp.json (server key, command, env vars), and updates CLAUDE.md
+    references in place. Idempotent — safe to run twice.
+
+    Use this once per existing repo that was set up with the pre-rename tool.
+    """
+    repo = repo_opt or ctx.obj.get("repo") or os.getcwd()
+    repo_path = Path(repo).resolve()
+    if not repo_path.is_dir():
+        click.echo(f"Error: {repo_path} is not a directory", err=True)
+        raise click.exceptions.Exit(1)
+
+    plan: list[str] = []
+
+    # 1. Data directory rename
+    old_data = repo_path / ".graph-context"
+    new_data = repo_path / ".cartographer"
+    rename_data = False
+    if old_data.is_dir():
+        if new_data.exists():
+            click.echo(
+                f"Error: both .graph-context/ and .cartographer/ exist in {repo_path}.\n"
+                f"Resolve manually (delete or merge one) before migrating.",
+                err=True,
+            )
+            raise click.exceptions.Exit(1)
+        rename_data = True
+        plan.append("Rename .graph-context/ → .cartographer/ (preserves the indexed DB)")
+
+    # 2. .mcp.json rewrite
+    mcp_json_path = repo_path / ".mcp.json"
+    mcp_data: dict | None = None
+    rewrite_mcp = False
+    if mcp_json_path.exists():
+        try:
+            mcp_data = json.loads(mcp_json_path.read_text())
+        except json.JSONDecodeError as e:
+            click.echo(f"Error: {mcp_json_path} is not valid JSON: {e}", err=True)
+            raise click.exceptions.Exit(1)
+        if "graph-context" in (mcp_data.get("mcpServers") or {}):
+            rewrite_mcp = True
+            plan.append(".mcp.json: rename server graph-context → cartographer (and command, env)")
+
+    # 3. CLAUDE.md rewrite
+    claude_md_path = repo_path / "CLAUDE.md"
+    rewrite_claude = False
+    if claude_md_path.exists():
+        text = claude_md_path.read_text()
+        if any(s in text for s in ("graph-context", ".graph-context", "GRAPH_CONTEXT", "graph_context")):
+            rewrite_claude = True
+            plan.append("CLAUDE.md: rewrite graph-context references → cartographer in place")
+
+    if not plan:
+        click.echo("Already migrated — nothing to do.")
+        return
+
+    click.echo(f"Migration plan for {repo_path}:")
+    for item in plan:
+        click.echo(f"  - {item}")
+
+    if dry_run:
+        click.echo("\nDry run — nothing written.")
+        return
+
+    # Execute
+    if rename_data:
+        old_data.rename(new_data)
+
+    if rewrite_mcp:
+        assert mcp_data is not None
+        servers = mcp_data["mcpServers"]
+        entry = servers.pop("graph-context")
+        if entry.get("command") == "graph-context-mcp":
+            entry["command"] = "cartographer-mcp"
+        env = entry.get("env") or {}
+        if "GRAPH_CONTEXT_REPO" in env:
+            env["CARTOGRAPHER_REPO"] = env.pop("GRAPH_CONTEXT_REPO")
+        if "GRAPH_CONTEXT_MCP_AUTOWATCH" in env:
+            env["CARTOGRAPHER_MCP_AUTOWATCH"] = env.pop("GRAPH_CONTEXT_MCP_AUTOWATCH")
+        if env:
+            entry["env"] = env
+        servers["cartographer"] = entry
+        mcp_json_path.write_text(json.dumps(mcp_data, indent=2) + "\n")
+
+    if rewrite_claude:
+        text = claude_md_path.read_text()
+        # Order matters: replace longer / more-specific tokens first so that
+        # the lowercase "graph-context" pass doesn't eat substrings of them.
+        text = text.replace("GRAPH_CONTEXT_MCP_AUTOWATCH", "CARTOGRAPHER_MCP_AUTOWATCH")
+        text = text.replace("GRAPH_CONTEXT_REPO", "CARTOGRAPHER_REPO")
+        text = text.replace(".graph-context", ".cartographer")
+        text = text.replace("Graph-context", "Cartographer")
+        text = text.replace("graph-context", "cartographer")
+        text = text.replace("graph_context", "cartographer")
+        claude_md_path.write_text(text)
+
+    click.echo("\nMigration complete.")
+    click.echo("\nNext: tell Claude Code about the renamed MCP server:")
+    click.echo("  claude mcp remove graph-context")
+    click.echo("  claude mcp add cartographer -- cartographer-mcp")
+
+
+# ---------------------------------------------------------------------------
 # watch
 # ---------------------------------------------------------------------------
 
