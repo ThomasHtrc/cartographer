@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "graph-context"
+name = "code-cartographer"
 version = "0.1.0"
-description = "Graph-based codebase understanding for coding agents"
+description = "Cartographer: graph-based codebase understanding for coding agents"
 requires-python = ">=3.11"
 dependencies = [
     "real_ladybug>=0.15.0",
@@ -32,11 +32,11 @@ dev = [
 ]
 
 [project.scripts]
-graph-context = "graph_context.cli:main"
-graph-context-mcp = "graph_context.mcp_server:run_server"
+cartographer = "cartographer.cli:main"
+cartographer-mcp = "cartographer.mcp_server:run_server"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/graph_context"]
+packages = ["src/cartographer"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
