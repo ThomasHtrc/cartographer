@@ -1,6 +1,6 @@
-"""MCP server exposing graph-context tools to coding agents.
+"""MCP server exposing cartographer tools to coding agents.
 
-Wraps the existing graph-context logic (indexing, querying, context generation,
+Wraps the existing cartographer logic (indexing, querying, context generation,
 plan management) as MCP tools accessible via stdio transport.
 """
 
@@ -21,7 +21,7 @@ from .context.assembler import Assembler
 from .context import formatter
 from .plans.manager import PlanManager
 
-mcp = FastMCP(name="graph-context")
+mcp = FastMCP(name="cartographer")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -88,7 +88,7 @@ def _ensure_watcher(repo: str, store: GraphStore) -> None:
                 "stop_event": stop_event,
                 "quiet": True,
             },
-            name=f"graph-context-watcher[{Path(repo).name}]",
+            name=f"cartographer-watcher[{Path(repo).name}]",
             daemon=True,
         )
         thread.start()
@@ -231,7 +231,7 @@ def repo_map(focus: list[str] | None = None, budget: int = 8000) -> str:
         files = store.query("MATCH (f:File) RETURN f.path")
         all_paths = [r[0] for r in files]
         if not all_paths:
-            return "(no indexed files — run `graph-context index` first)"
+            return "(no indexed files — run `cartographer index` first)"
         ranked = ranker.rank(all_paths, max_results=200)
 
     if not ranked:
@@ -799,7 +799,7 @@ def graph_stats() -> str:
         if count > 0:
             stats[label] = count
     if not stats:
-        return "(graph is empty — run `graph-context index` first)"
+        return "(graph is empty — run `cartographer index` first)"
     return json.dumps(stats, indent=2)
 
 

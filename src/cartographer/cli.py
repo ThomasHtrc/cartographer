@@ -1,4 +1,4 @@
-"""CLI entry point for graph-context."""
+"""CLI entry point for cartographer."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from .context import formatter
 @click.option("--repo", default=".", help="Path to the repository root.")
 @click.pass_context
 def cli(ctx: click.Context, repo: str) -> None:
-    """graph-context: Graph-based codebase understanding for coding agents."""
+    """cartographer: Graph-based codebase understanding for coding agents."""
     ctx.ensure_object(dict)
     ctx.obj["repo"] = str(Path(repo).resolve())
 
@@ -37,10 +37,10 @@ def cli(ctx: click.Context, repo: str) -> None:
 
 @cli.command()
 @click.option("--with-mcp", is_flag=True, help="Also generate .mcp.json for Claude Code integration.")
-@click.option("--with-claude-md", is_flag=True, help="Also append graph-context instructions to CLAUDE.md.")
+@click.option("--with-claude-md", is_flag=True, help="Also append cartographer instructions to CLAUDE.md.")
 @click.pass_context
 def init(ctx: click.Context, with_mcp: bool, with_claude_md: bool) -> None:
-    """Initialize graph-context in the current repository."""
+    """Initialize cartographer in the current repository."""
     repo = ctx.obj["repo"]
     project_dir = config.get_project_dir(repo)
     project_dir.mkdir(parents=True, exist_ok=True)
@@ -48,9 +48,9 @@ def init(ctx: click.Context, with_mcp: bool, with_claude_md: bool) -> None:
     meta = config.load_meta(repo)
     if not meta:
         config.save_meta(repo, {"initialized": True, "last_commit": None})
-        click.echo(f"Initialized graph-context in {project_dir}")
+        click.echo(f"Initialized cartographer in {project_dir}")
     else:
-        click.echo(f"graph-context already initialized in {project_dir}")
+        click.echo(f"cartographer already initialized in {project_dir}")
 
     if with_mcp:
         _write_mcp_json(repo)
@@ -64,7 +64,7 @@ def init(ctx: click.Context, with_mcp: bool, with_claude_md: bool) -> None:
 def setup(ctx: click.Context) -> None:
     """One-command setup: init + index + MCP config + CLAUDE.md.
 
-    Run this in your project root to get started with graph-context and Claude Code.
+    Run this in your project root to get started with cartographer and Claude Code.
     """
     repo = ctx.obj["repo"]
     project_dir = config.get_project_dir(repo)
@@ -73,12 +73,12 @@ def setup(ctx: click.Context) -> None:
     meta = config.load_meta(repo)
     mcp_exists = (Path(repo) / ".mcp.json").exists()
     claude_md = Path(repo) / "CLAUDE.md"
-    claude_md_has_gc = claude_md.exists() and "graph-context" in claude_md.read_text()
+    claude_md_has_gc = claude_md.exists() and "cartographer" in claude_md.read_text()
 
     if meta and meta.get("initialized") and mcp_exists and claude_md_has_gc:
-        click.echo("graph-context is already set up in this project.")
-        click.echo("To re-index, run: graph-context index")
-        click.echo("To re-index from scratch, run: graph-context index --clean")
+        click.echo("cartographer is already set up in this project.")
+        click.echo("To re-index, run: cartographer index")
+        click.echo("To re-index from scratch, run: cartographer index --clean")
         return
 
     # Init
@@ -86,7 +86,7 @@ def setup(ctx: click.Context) -> None:
     if not meta:
         config.save_meta(repo, {"initialized": True, "last_commit": None})
         meta = config.load_meta(repo)
-    click.echo(f"Initialized graph-context in {project_dir}")
+    click.echo(f"Initialized cartographer in {project_dir}")
 
     # Index
     ctx.invoke(index)
@@ -96,7 +96,7 @@ def setup(ctx: click.Context) -> None:
     _write_claude_md(repo)
 
     click.echo("\nSetup complete! To register with Claude Code, run:")
-    click.echo("  claude mcp add graph-context -- graph-context-mcp")
+    click.echo("  claude mcp add cartographer -- cartographer-mcp")
 
 
 # ---------------------------------------------------------------------------
@@ -115,17 +115,17 @@ def watch(ctx: click.Context, quiet: bool, daemon: bool, stop: bool, show_status
     Monitors supported source files and re-indexes them on save.
     Uses watchfiles (Rust-backed) with 1.6s debounce for batching rapid saves.
 
-    Run in background:  graph-context watch --daemon
-    Check status:       graph-context watch --status
-    Stop daemon:        graph-context watch --stop
+    Run in background:  cartographer watch --daemon
+    Check status:       cartographer watch --status
+    Stop daemon:        cartographer watch --stop
 
-    Note: if you're running graph-context-mcp, the MCP server already keeps
+    Note: if you're running cartographer-mcp, the MCP server already keeps
     the index fresh in-process — you don't need a separate watcher daemon.
     """
     repo = ctx.obj["repo"]
     meta = config.load_meta(repo)
     if not meta or not meta.get("initialized"):
-        click.echo("Error: graph-context not initialized. Run `graph-context setup` first.")
+        click.echo("Error: cartographer not initialized. Run `cartographer setup` first.")
         raise SystemExit(1)
 
     from .watcher import run_watcher, start_daemon, stop_daemon, daemon_status
@@ -150,7 +150,7 @@ def watch(ctx: click.Context, quiet: bool, daemon: bool, stop: bool, show_status
         if os.getpid() != pid:
             # We're the parent
             click.echo(f"Watcher started in background (PID {pid})")
-            click.echo(f"  Stop with: graph-context watch --stop")
+            click.echo(f"  Stop with: cartographer watch --stop")
             click.echo(f"  Log: .cartographer/watcher.log")
         return
 
@@ -1005,19 +1005,19 @@ def _write_mcp_json(repo: str) -> None:
 
 
 def _write_claude_md(repo: str) -> None:
-    """Append graph-context instructions to CLAUDE.md."""
+    """Append cartographer instructions to CLAUDE.md."""
     claude_md = Path(repo) / "CLAUDE.md"
     template = Path(__file__).parent / "templates" / "CLAUDE.md"
     snippet = template.read_text()
 
     if claude_md.exists():
         existing = claude_md.read_text()
-        if "graph-context" in existing:
-            click.echo("CLAUDE.md already contains graph-context instructions")
+        if "cartographer" in existing:
+            click.echo("CLAUDE.md already contains cartographer instructions")
             return
         with claude_md.open("a") as f:
             f.write("\n\n" + snippet)
-        click.echo(f"Appended graph-context instructions to {claude_md}")
+        click.echo(f"Appended cartographer instructions to {claude_md}")
     else:
         claude_md.write_text(snippet)
         click.echo(f"Created {claude_md}")
@@ -1052,11 +1052,11 @@ def _output(rows: list[list], columns: list[str], fmt: str) -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    """Entry point used by the ``graph-context`` console script.
+    """Entry point used by the ``cartographer`` console script.
 
     Runs the Click group and intercepts ``DatabaseLockedError`` so the user
     sees a clean message instead of a traceback when the LadybugDB lock is
-    held by another process (typically a running graph-context-mcp server).
+    held by another process (typically a running cartographer-mcp server).
     """
     try:
         cli(standalone_mode=True)

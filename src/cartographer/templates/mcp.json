@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "graph-context": {
-      "command": "graph-context-mcp",
+    "cartographer": {
+      "command": "cartographer-mcp",
       "args": [],
       "env": {
         "CARTOGRAPHER_REPO": "."

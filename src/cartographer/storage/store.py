@@ -16,16 +16,16 @@ class DatabaseLockedError(RuntimeError):
     """Raised when the LadybugDB database is locked by another process.
 
     LadybugDB enforces a single-process exclusive lock on the database
-    directory. When this error is raised, another graph-context process
+    directory. When this error is raised, another cartographer process
     (typically the MCP server) holds the lock.
     """
 
 
 def _format_lock_error(db_path: Path) -> str:
     return (
-        f"The graph-context database at {db_path} is locked by another process.\n"
+        f"The cartographer database at {db_path} is locked by another process.\n"
         f"\n"
-        f"This usually means a graph-context-mcp server is running for this repo.\n"
+        f"This usually means a cartographer-mcp server is running for this repo.\n"
         f"  - Use the MCP tools to query/modify the graph (they share the lock).\n"
         f"  - Or stop the MCP server first, then re-run this command.\n"
         f"\n"

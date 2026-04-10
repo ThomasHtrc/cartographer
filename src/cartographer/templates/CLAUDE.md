@@ -1,8 +1,8 @@
-# graph-context
+# cartographer
 
-This project has a **graph-context** index — a graph of codebase structure, git history, and plans in `.graph-context/db/`, exposed via MCP tools.
+This project has a **cartographer** index — a graph of codebase structure, git history, and plans in `.cartographer/db/`, exposed via MCP tools.
 
-## When to use graph-context vs standard tools
+## When to use cartographer vs standard tools
 
 | Task | Best tool | Why |
 |------|-----------|-----|
@@ -15,7 +15,7 @@ This project has a **graph-context** index — a graph of codebase structure, gi
 | **Story of an area** — "what's been happening in this file and what's planned?" | `timeline` | Past commits + active plans + neighbors in one call. Saves a `recent_changes` + `plan_show` + `co_changes` round trip. |
 | **Dead code cleanup** | `dead_code` | Finds functions with zero callers. Static call graph analysis grep can't do. |
 | **Continuity** — "what was planned?" | `plan_list` / `plan_show` | Cross-session memory with progress tracking, dependency chains, and next-step recommendations. |
-| **Reading implementation details** | `Read` / `Grep` | Graph-context gives signatures, not full code. Read the source for logic. |
+| **Reading implementation details** | `Read` / `Grep` | Cartographer gives signatures, not full code. Read the source for logic. |
 | **Tracing sequential flow** | `Grep` + `Read` | For "how does X work end-to-end?", reading the actual code is more detailed. |
 
 ## Decision tree
@@ -28,7 +28,7 @@ This project has a **graph-context** index — a graph of codebase structure, gi
 6. **Resuming work**: `plan_list(status="active")` — check what was planned, see progress (e.g. "3/5 intents done").
 7. **Cleaning up code**: `dead_code(path="src/module")` — find unused functions.
 8. **Resuming an unfamiliar area**: `timeline(target)` — read recent commits + pending plans before touching code, in one shot.
-9. **Need actual code**: Use `Read` — graph-context gives structure, not implementation.
+9. **Need actual code**: Use `Read` — cartographer gives structure, not implementation.
 
 ## Tool reference
 
@@ -67,6 +67,6 @@ This project has a **graph-context** index — a graph of codebase structure, gi
 
 - **Partial paths work** — `src/api/routes.py` resolves even if the full path is `apps/myapp/src/api/routes.py`.
 - **Combine tools** — Use `blast_radius` to find affected code, then `Read` the specific files that matter.
-- **Graph stays fresh automatically** if the file watcher is running (`graph-context watch --daemon`). Otherwise, run `graph-context index --incremental` after significant changes.
+- **Graph stays fresh automatically** if the file watcher is running (`cartographer watch --daemon`). Otherwise, run `cartographer index --incremental` after significant changes.
 - **Plans persist across sessions** — always check `plan_list(status="active")` when resuming work. Update intent status with `plan_update_intent` as you complete steps.
 - **Context includes plan awareness** — when you query `context()` for files targeted by an active plan, the plan summary and pending intents appear in the output automatically.

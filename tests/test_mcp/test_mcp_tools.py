@@ -20,7 +20,7 @@ def project_dir(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
 
-    # Initialize graph-context
+    # Initialize cartographer
     gc_dir = repo / ".cartographer"
     gc_dir.mkdir()
     db_path = gc_dir / "db"
