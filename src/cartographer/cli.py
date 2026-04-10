@@ -151,7 +151,7 @@ def watch(ctx: click.Context, quiet: bool, daemon: bool, stop: bool, show_status
             # We're the parent
             click.echo(f"Watcher started in background (PID {pid})")
             click.echo(f"  Stop with: graph-context watch --stop")
-            click.echo(f"  Log: .graph-context/watcher.log")
+            click.echo(f"  Log: .cartographer/watcher.log")
         return
 
     run_watcher(repo, quiet=quiet)
@@ -984,7 +984,7 @@ def stats(ctx: click.Context) -> None:
 def mcp_cmd(ctx: click.Context) -> None:
     """Start the MCP server (stdio transport)."""
     import os
-    os.environ["GRAPH_CONTEXT_REPO"] = ctx.obj["repo"]
+    os.environ["CARTOGRAPHER_REPO"] = ctx.obj["repo"]
     from .mcp_server import run_server
     run_server()
 

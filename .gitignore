@@ -9,9 +9,9 @@ build/
 .venv/
 venv/
 
-# graph-context data (generated)
-.graph-context/db/
-.graph-context/meta.json
+# cartographer data (generated)
+.cartographer/db/
+.cartographer/meta.json
 
 # IDE
 .vscode/

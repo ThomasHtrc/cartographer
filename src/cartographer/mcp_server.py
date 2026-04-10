@@ -29,7 +29,7 @@ mcp = FastMCP(name="graph-context")
 
 def _repo_path() -> str:
     """Get the repo path from environment or cwd."""
-    return os.environ.get("GRAPH_CONTEXT_REPO", os.getcwd())
+    return os.environ.get("CARTOGRAPHER_REPO", os.getcwd())
 
 
 # Persistent store cache — avoids DB open/close overhead on every tool call.
@@ -47,7 +47,7 @@ def _open_store() -> GraphStore:
     """Get or create a persistent store connection for the current repo.
 
     Also lazily spawns an in-process file watcher thread for the repo
-    (unless ``GRAPH_CONTEXT_MCP_AUTOWATCH=0``), so that file edits get
+    (unless ``CARTOGRAPHER_MCP_AUTOWATCH=0``), so that file edits get
     re-indexed without restarting the MCP server.
     """
     repo = _repo_path()
@@ -65,9 +65,9 @@ def _open_store() -> GraphStore:
 def _ensure_watcher(repo: str, store: GraphStore) -> None:
     """Spawn a background watcher thread for ``repo`` if not already running.
 
-    No-op if ``GRAPH_CONTEXT_MCP_AUTOWATCH=0`` is set in the environment.
+    No-op if ``CARTOGRAPHER_MCP_AUTOWATCH=0`` is set in the environment.
     """
-    if os.environ.get("GRAPH_CONTEXT_MCP_AUTOWATCH", "1") == "0":
+    if os.environ.get("CARTOGRAPHER_MCP_AUTOWATCH", "1") == "0":
         return
     with _watcher_lock:
         if repo in _watcher_threads:

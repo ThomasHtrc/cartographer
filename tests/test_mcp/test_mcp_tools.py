@@ -21,7 +21,7 @@ def project_dir(tmp_path):
     repo.mkdir()
 
     # Initialize graph-context
-    gc_dir = repo / ".graph-context"
+    gc_dir = repo / ".cartographer"
     gc_dir.mkdir()
     db_path = gc_dir / "db"
 
@@ -79,7 +79,7 @@ def _patch_repo(project_dir):
     # tests, exhausting address space when many tests run in one process.
     with mock.patch.dict(
         os.environ,
-        {"GRAPH_CONTEXT_REPO": project_dir, "GRAPH_CONTEXT_MCP_AUTOWATCH": "0"},
+        {"CARTOGRAPHER_REPO": project_dir, "CARTOGRAPHER_MCP_AUTOWATCH": "0"},
     ):
         yield
     _reset()

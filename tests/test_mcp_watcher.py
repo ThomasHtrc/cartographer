@@ -25,10 +25,10 @@ def isolated_mcp_state(monkeypatch, tmp_path):
     mcp_server._store_cache.clear()
     mcp_server._watcher_threads.clear()
 
-    # Point _repo_path() at the tmp dir and pre-create the .graph-context tree
+    # Point _repo_path() at the tmp dir and pre-create the .cartographer tree
     repo = tmp_path
     config.get_db_path(str(repo)).parent.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("GRAPH_CONTEXT_REPO", str(repo))
+    monkeypatch.setenv("CARTOGRAPHER_REPO", str(repo))
 
     yield repo
 
@@ -43,7 +43,7 @@ def isolated_mcp_state(monkeypatch, tmp_path):
 
 class TestWatcherSpawn:
     def test_open_store_spawns_watcher(self, isolated_mcp_state, monkeypatch):
-        monkeypatch.setenv("GRAPH_CONTEXT_MCP_AUTOWATCH", "1")
+        monkeypatch.setenv("CARTOGRAPHER_MCP_AUTOWATCH", "1")
         repo = str(isolated_mcp_state)
 
         store = mcp_server._open_store()
@@ -59,13 +59,13 @@ class TestWatcherSpawn:
         assert len(mcp_server._watcher_threads) == 1
 
     def test_autowatch_disabled_via_env(self, isolated_mcp_state, monkeypatch):
-        monkeypatch.setenv("GRAPH_CONTEXT_MCP_AUTOWATCH", "0")
+        monkeypatch.setenv("CARTOGRAPHER_MCP_AUTOWATCH", "0")
 
         mcp_server._open_store()
         assert mcp_server._watcher_threads == {}
 
     def test_shutdown_watchers_stops_threads(self, isolated_mcp_state, monkeypatch):
-        monkeypatch.setenv("GRAPH_CONTEXT_MCP_AUTOWATCH", "1")
+        monkeypatch.setenv("CARTOGRAPHER_MCP_AUTOWATCH", "1")
         mcp_server._open_store()
         repo = str(isolated_mcp_state)
         thread, stop_event = mcp_server._watcher_threads[repo]
@@ -82,7 +82,7 @@ class TestWatcherIndexesChanges:
     def test_watcher_picks_up_new_python_file(self, isolated_mcp_state, monkeypatch):
         """End-to-end: spawn the watcher, drop a .py file in the repo, wait
         for the debounce window to fire, assert the file shows up indexed."""
-        monkeypatch.setenv("GRAPH_CONTEXT_MCP_AUTOWATCH", "1")
+        monkeypatch.setenv("CARTOGRAPHER_MCP_AUTOWATCH", "1")
         repo = isolated_mcp_state
         store = mcp_server._open_store()
 

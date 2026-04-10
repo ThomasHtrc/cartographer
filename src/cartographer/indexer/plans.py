@@ -1,4 +1,4 @@
-"""Plan indexer: Layer 3 — ingest plan files from .graph-context/plans/."""
+"""Plan indexer: Layer 3 — ingest plan files from .cartographer/plans/."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ class PlanIndexer:
         self.manager = PlanManager(store)
 
     def index(self) -> dict:
-        """Ingest all plan YAML files from .graph-context/plans/."""
+        """Ingest all plan YAML files from .cartographer/plans/."""
         self.store.ensure_schema(layers=("structure", "planning"))
-        plans_dir = self.repo_path / ".graph-context" / "plans"
+        plans_dir = self.repo_path / ".cartographer" / "plans"
         return self.manager.ingest_plans_dir(plans_dir)
