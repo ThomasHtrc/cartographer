@@ -1,8 +1,8 @@
 """Tests for language extractors."""
 
 import pytest
-from graph_context.indexer.extractors.python import PythonExtractor
-from graph_context.indexer.extractors.typescript import (
+from cartographer.indexer.extractors.python import PythonExtractor
+from cartographer.indexer.extractors.typescript import (
     TypeScriptExtractor,
     JavaScriptExtractor,
     TSXExtractor,

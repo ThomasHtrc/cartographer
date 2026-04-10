@@ -10,8 +10,8 @@ from unittest import mock
 
 import pytest
 
-from graph_context.storage.store import GraphStore
-from graph_context import config
+from cartographer.storage.store import GraphStore
+from cartographer import config
 
 
 @pytest.fixture()
@@ -62,7 +62,7 @@ def project_dir(tmp_path):
 @pytest.fixture()
 def _patch_repo(project_dir):
     """Patch the MCP server to use our test repo."""
-    from graph_context import mcp_server
+    from cartographer import mcp_server
 
     def _reset():
         mcp_server._shutdown_watchers()
@@ -91,30 +91,30 @@ def _patch_repo(project_dir):
 
 class TestContextTools:
     def test_context_markdown(self, _patch_repo):
-        from graph_context.mcp_server import context
+        from cartographer.mcp_server import context
         result = context(focus=["src/auth.py"], budget=2000)
         assert "src/auth.py" in result
         assert "login" in result
 
     def test_context_json(self, _patch_repo):
-        from graph_context.mcp_server import context
+        from cartographer.mcp_server import context
         result = context(focus=["src/auth.py"], budget=2000, format="json")
         data = json.loads(result)
         assert data["focal_points"] == ["src/auth.py"]
         assert data["files_included"] >= 1
 
     def test_context_no_results(self, _patch_repo):
-        from graph_context.mcp_server import context
+        from cartographer.mcp_server import context
         result = context(focus=["nonexistent.py"])
         assert "no relevant" in result
 
     def test_repo_map(self, _patch_repo):
-        from graph_context.mcp_server import repo_map
+        from cartographer.mcp_server import repo_map
         result = repo_map(budget=4000)
         assert "src/auth.py" in result or "src/models.py" in result
 
     def test_repo_map_focused(self, _patch_repo):
-        from graph_context.mcp_server import repo_map
+        from cartographer.mcp_server import repo_map
         result = repo_map(focus=["src/auth.py"], budget=4000)
         assert "login" in result
 
@@ -125,7 +125,7 @@ class TestContextTools:
 
 class TestNavigationTools:
     def test_find_definition(self, _patch_repo):
-        from graph_context.mcp_server import find_definition
+        from cartographer.mcp_server import find_definition
         result = find_definition("login")
         data = json.loads(result)
         assert len(data) == 1
@@ -133,32 +133,32 @@ class TestNavigationTools:
         assert data[0]["file"] == "src/auth.py"
 
     def test_find_definition_class(self, _patch_repo):
-        from graph_context.mcp_server import find_definition
+        from cartographer.mcp_server import find_definition
         result = find_definition("User")
         data = json.loads(result)
         assert any(d["kind"] == "class" for d in data)
 
     def test_find_definition_not_found(self, _patch_repo):
-        from graph_context.mcp_server import find_definition
+        from cartographer.mcp_server import find_definition
         result = find_definition("nonexistent")
         assert "No definition" in result
 
     def test_find_callers(self, _patch_repo):
-        from graph_context.mcp_server import find_callers
+        from cartographer.mcp_server import find_callers
         result = find_callers("validate")
         data = json.loads(result)
         assert len(data) >= 1
         assert data[0]["caller"] == "login"
 
     def test_find_callees(self, _patch_repo):
-        from graph_context.mcp_server import find_callees
+        from cartographer.mcp_server import find_callees
         result = find_callees("login")
         data = json.loads(result)
         assert len(data) >= 1
         assert data[0]["callee"] == "validate"
 
     def test_module_structure(self, _patch_repo):
-        from graph_context.mcp_server import module_structure
+        from cartographer.mcp_server import module_structure
         result = module_structure("src")
         data = json.loads(result)
         assert len(data) >= 1
@@ -172,7 +172,7 @@ class TestNavigationTools:
 
 class TestPlanTools:
     def test_plan_crud(self, _patch_repo):
-        from graph_context.mcp_server import plan_create, plan_list, plan_show, plan_update
+        from cartographer.mcp_server import plan_create, plan_list, plan_show, plan_update
 
         # Create
         result = plan_create(title="Auth rewrite", description="Modernize auth")
@@ -201,7 +201,7 @@ class TestPlanTools:
         assert plan["status"] == "active"
 
     def test_plan_add_intent(self, _patch_repo):
-        from graph_context.mcp_server import plan_create, plan_add_intent, plan_show
+        from cartographer.mcp_server import plan_create, plan_add_intent, plan_show
 
         result = plan_create(title="Test plan")
         plan_id = json.loads(result)["id"]
@@ -221,7 +221,7 @@ class TestPlanTools:
 
 class TestUtilityTools:
     def test_graph_stats(self, _patch_repo):
-        from graph_context.mcp_server import graph_stats
+        from cartographer.mcp_server import graph_stats
         result = graph_stats()
         data = json.loads(result)
         assert data["File"] == 2
@@ -229,7 +229,7 @@ class TestUtilityTools:
         assert data["Class"] == 1
 
     def test_run_cypher(self, _patch_repo):
-        from graph_context.mcp_server import run_cypher
+        from cartographer.mcp_server import run_cypher
         result = run_cypher("MATCH (f:File) RETURN f.path ORDER BY f.path")
         data = json.loads(result)
         assert len(data) == 2

@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-from graph_context.storage.store import GraphStore, DatabaseLockedError
+from cartographer.storage.store import GraphStore, DatabaseLockedError
 
 
 def _spawn_lock_holder(db_path) -> subprocess.Popen:

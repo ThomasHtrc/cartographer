@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from graph_context import config, mcp_server
-from graph_context.storage.store import GraphStore
+from cartographer import config, mcp_server
+from cartographer.storage.store import GraphStore
 
 
 @pytest.fixture()

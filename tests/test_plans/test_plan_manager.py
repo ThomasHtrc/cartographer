@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from graph_context.storage.store import GraphStore
-from graph_context.plans.manager import PlanManager
+from cartographer.storage.store import GraphStore
+from cartographer.plans.manager import PlanManager
 
 
 @pytest.fixture()
