@@ -2,10 +2,10 @@
 
 import pytest
 
-from graph_context.storage.store import GraphStore
-from graph_context.context.ranker import Ranker, RankedNode
-from graph_context.context.assembler import Assembler, estimate_tokens
-from graph_context.context import formatter
+from cartographer.storage.store import GraphStore
+from cartographer.context.ranker import Ranker, RankedNode
+from cartographer.context.assembler import Assembler, estimate_tokens
+from cartographer.context import formatter
 
 
 @pytest.fixture()
@@ -189,7 +189,7 @@ class TestEstimateTokens:
 
 class TestFormatMarkdown:
     def _make_context(self):
-        from graph_context.context.assembler import ContextItem, AssembledContext
+        from cartographer.context.assembler import ContextItem, AssembledContext
         items = [
             ContextItem("file_header", "src/auth.py", "src/auth.py", "# src/auth.py", 5, 0.9),
             ContextItem("signature", "src/auth.py", "authenticate",

@@ -24,7 +24,7 @@ from .indexer.structure import StructureIndexer, EXTRACTORS, _file_ext
 
 # Directories to ignore
 IGNORE_DIRS = {
-    ".git", ".graph-context", "node_modules", "__pycache__",
+    ".git", ".cartographer", "node_modules", "__pycache__",
     ".venv", "venv", "dist", "build", ".tox", ".mypy_cache",
     ".pytest_cache", ".ruff_cache", "egg-info",
 }

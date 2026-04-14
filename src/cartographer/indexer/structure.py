@@ -290,7 +290,7 @@ class StructureIndexer:
             # Skip hidden dirs and common non-code dirs
             dirs[:] = [d for d in dirs if not d.startswith(".") and d not in (
                 "node_modules", "__pycache__", ".venv", "venv", "dist", "build",
-                ".git", ".graph-context",
+                ".git", ".cartographer",
             )]
             for f in filenames:
                 ext = _file_ext(f)

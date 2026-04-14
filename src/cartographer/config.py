@@ -1,17 +1,17 @@
-"""Project configuration for graph-context."""
+"""Project configuration for cartographer."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-GRAPH_CONTEXT_DIR = ".graph-context"
+CARTOGRAPHER_DIR = ".cartographer"
 DB_DIR = "db"
 META_FILE = "meta.json"
 
 
 def get_project_dir(repo_path: str | Path) -> Path:
-    return Path(repo_path) / GRAPH_CONTEXT_DIR
+    return Path(repo_path) / CARTOGRAPHER_DIR
 
 
 def get_db_path(repo_path: str | Path) -> Path:

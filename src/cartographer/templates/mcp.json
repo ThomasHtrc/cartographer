@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "cartographer": {
+      "command": "cartographer-mcp",
+      "args": [],
+      "env": {
+        "CARTOGRAPHER_REPO": "."
+      }
+    }
+  }
+}

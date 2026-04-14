@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-from graph_context.storage.store import GraphStore, DatabaseLockedError
+from cartographer.storage.store import GraphStore, DatabaseLockedError
 
 
 def _spawn_lock_holder(db_path) -> subprocess.Popen:
@@ -58,7 +58,7 @@ class TestDatabaseLockedError:
             msg = str(exc.value)
             # Friendly content checks
             assert str(db_path) in msg
-            assert "graph-context-mcp" in msg
+            assert "cartographer-mcp" in msg
             assert "MCP" in msg
         finally:
             holder.stdin.close()

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from graph_context.storage.store import GraphStore
-from graph_context.plans.manager import PlanManager
-from graph_context.timeline import (
+from cartographer.storage.store import GraphStore
+from cartographer.plans.manager import PlanManager
+from cartographer.timeline import (
     resolve_target,
     get_timeline,
     format_markdown,

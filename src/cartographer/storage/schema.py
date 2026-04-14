@@ -1,4 +1,4 @@
-"""LadybugDB schema definitions for the graph-context model.
+"""LadybugDB schema definitions for the cartographer model.
 
 Three layers:
   Layer 1 (Structure): Files, Modules, Classes, Functions, Types, Variables,
