@@ -19,7 +19,7 @@ Cartographer builds a graph of your codebase — structure (files, functions, cl
 ### 1. Install
 
 ```bash
-pip install git+https://github.com/ThomasHtrc/graph-context.git'[mcp,watch]'
+pip install git+https://github.com/ThomasHtrc/cartographer.git'[mcp,watch]'
 ```
 
 Requires Python 3.11+.
